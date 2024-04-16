@@ -90,6 +90,36 @@ def format_italic_bold (input_string, str1, str2):
             break
     return commonmark
 
+def find_url(input_string):
+    pattern = r'\b(?:https?://)\S+(?=\s|\)|\.)'
+    match = re.search(pattern, input_string)
+    if match:
+        url = match.group(0)
+        start_index = match.start()
+        # Find the last character of the URL
+        end_index = start_index + len(url) - 1
+        if input_string[end_index] in (' ', ')', '.'):
+            url = url[:-1]  # Exclude the trailing character
+        return url, start_index
+    else:
+        return None, -1
+
+def format_url_links(input_string):
+    main_index = 0
+    output_string = ""
+    url = ""
+    while url != None:
+        url, indx = find_url(input_string[main_index:])
+        #print("DEBUG(format_url_links): url: ", url)
+        if url:
+            commonmark_link = url.replace(url, "["+url+"]("+url+")")
+            output_string += input_string[main_index:main_index+indx] + commonmark_link
+            main_index += indx + len(url)
+        else:
+            output_string += input_string[main_index:]  
+    return output_string
+                    
+    
 # Format the tables (add a second row as a separator and \n before the title bar)
 def format_tables(input_data):
     output_data = ""
@@ -151,6 +181,7 @@ def replace_formatting(input_data):
     output_data = format_italic_bold (output_data, "``", "*")
     output_data = format_italic_bold (output_data, "_`", "***")
     output_data = format_tables (output_data)
+    output_data = format_url_links (output_data)
     return output_data
 
 def wiki2commonmark(input_data):
