@@ -90,7 +90,7 @@ def format_italic_bold (input_string, str1, str2):
             break
     return commonmark
 
-# FOrmat the tables (add a second row as a separator)
+# Format the tables (add a second row as a separator and \n before the title bar)
 def format_tables(input_data):
     output_data = ""
     main_index = 0
@@ -123,8 +123,8 @@ def format_tables(input_data):
                 columns -= 1
             #print("DEBUG(format_tables): title line: ", input_data[main_index:eol_indx])
             #print("DEBUG(format_tables): found columns: ", columns)
-            # copy the first row (title with the terminating \n)
-            output_data += input_data[main_index:eol_indx+1]
+            # copy the first row (title with the terminating \n) and add leading \n
+            output_data += "\n" + input_data[main_index:eol_indx+1]
             #print ("DEBUG(format_tables): output_data: ", output_data)
             # Insert the separator between the title and the contents
             main_index = eol_indx
