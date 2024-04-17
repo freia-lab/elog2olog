@@ -245,7 +245,7 @@ def get_owner(data):
         else:
             return dict[a[0:2]], "Author(s): "+a+"  \n"
     else:
-        return guest,""
+        return guest,a
  
 def get_title(data):
     t = extract_content_between_tags(data, "title")
@@ -305,9 +305,7 @@ def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, tim
         multipart_data = MultipartEncoder(
             fields={
                 'logEntry': ('logEntry.json', json_data, 'application/json'),
-                'files': ('filename', json_filename, 'application/json'),
-                'files': ('fileMetadataDescription', json_descr, 'application/json'),
-                'files': (attachment[0], open(attachment[1], 'rb'), 'application/octet-stream')
+                'files': (attachment[0], open(attachment[1], 'rb'), attachment[2])
             }
         )
     
@@ -318,7 +316,7 @@ def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, tim
     print("Content-Type " + multipart_data.content_type)
     #print(multipart_data)
     try:
-        response = requests.put(api_endpoint, headers=headers, data=multipart_data, auth=HTTPBasicAuth(owner, dict[owner]))
+        #response = requests.put(api_endpoint, headers=headers, data=multipart_data, auth=HTTPBasicAuth(owner, dict[owner]))
         if response.status_code == 200:
             print("Log entry created successfully.")
         else:
@@ -377,13 +375,16 @@ def main():
         d =  extract_content_between_tags(data, "isodate")
         t = extract_content_between_tags(data, "time")
         timestamp = datetime_to_unix_milliseconds(d,t)
-        print('Author: {1}\tTitle: {0}\nLevel: {2!s:.<20s}Keyword: {3!s:.<20s}Timestamp: {4}'.format(title,owner,level,tags,timestamp))
+        print('Author: {1} ({5})\tTitle: {0}\nLevel: {2!s:.<20s}Keyword: {3!s:.<20s}Timestamp: {4}'.format(title,owner,level,tags,timestamp, authors))
         fname = extract_content_between_tags(data, "image")
         if fname != "None":
             attachment[0] = fname
             attachment[1] = directory + "/" + extract_content_between_tags(data, "link")
             attachment[2] = get_mime_type(attachment[1])
             print("Attachment: ", attachment)
+            image_size = get_image_size(attachment[1])
+            if image_size:
+                print("Image size: ", image_size)
             # print ("Attachment: "+fname+"  \t\t\t"+attachment+" ("+get_mime_type(attachment)+")")
             #print('Attachment: {0!s:.<40}{1!s:.<60s}{2}'.format(fname, attachment, get_mime_type(attachment[2])))
         else:
