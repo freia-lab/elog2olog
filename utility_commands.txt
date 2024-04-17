@@ -1,0 +1,27 @@
+A command to find all different file exensions of the attachments in the logbook directory:
+
+find /var/www/<elogName>/data -type f -printf "%f\n" |awk -F "\." '{print $2}'|grep -v xml |sort -u
+
+for example:
+konrad@freia:/var/www$ find /var/www/FREIAelog/data -type f -printf "%f\n" |awk -F "\." '{print $2}'|grep -v xml |sort -u
+bmp
+csv
+docx
+gif
+HEIC
+jpeg
+jpg
+JPG
+mat
+oxps
+pdf
+PDF
+png
+PNG
+pptx
+ps
+xls
+xlsx
+xps
+zip
+

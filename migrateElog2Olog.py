@@ -12,11 +12,21 @@ from past.builtins import execfile
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 from requests.auth import HTTPBasicAuth
+from PIL import Image
 
 import wikitextparser as wtp
 from bs4 import BeautifulSoup
 
 execfile('passwds.py')
+
+def get_image_size(file_path):
+    try:
+        with Image.open(file_path) as img:
+            width, height = img.size
+            return width, height
+    except IOError:
+        print(f"Unable to open image file: {file_path}")
+        return None
 
 def datetime_to_unix_milliseconds(date_str, time_str):
     # Parse date and time strings into datetime object
@@ -253,6 +263,9 @@ def get_level(data):
 
 def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, timestamp, title, level, tags, descr, attachment):
     # Prepare log entry payload
+    attchmntId = str(uuid.uuid4())
+    json_filename = ""
+    json_descr = ""
     if (attachment[0] == "None"):
         log_entry = {
             "description": authors+descr,
@@ -263,25 +276,21 @@ def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, tim
         }
     else:
         log_entry = {
-            "description": "New entry using Olog/logs/multipart with one embedded image attachment.\n\n![](attachment/"+attchmntId+"){width=140 height=67}",
+            "description": authors+descr+"\n\nSee attachment\n",
             "level": level,
             "title": title,
             "logbooks": [{"name": logbook}],
             "events": [{"name":"OriginalCreatedDate","instant": timestamp }],
             "attachments":[
-            {"id": attchmntId, "filename": attachment[1][0]}
+            {"id": attchmntId, "filename": attachment[0]}
             ]
         }
          # Prepare the attachment
-        attachment = ('files', ('FREIAlogo-v3_March19.png', open('FREIAlogo-v3_March19.png', 'rb'), 'image/png'))
-        attchmntId = str(uuid.uuid4())
-
-        #print (attachment[1][0])
-        #print (attachment[0] + ": ", attachment[1])
+        print ("DEBUG(attachment(create_log_entry_with_attachments): attachment: ", attachment)
         # Prepare the log entry payload as JSON
         json_filename = json.dumps({"filename": attachment[0]})
         json_descr = json.dumps({"fileMetadataDescription": attachment[2]})
-    #print (log_entry)
+        print (json_descr)
 
     # Prepare the log entry payload as JSON
     json_data = json.dumps(log_entry)
@@ -370,11 +379,13 @@ def main():
         timestamp = datetime_to_unix_milliseconds(d,t)
         print('Author: {1}\tTitle: {0}\nLevel: {2!s:.<20s}Keyword: {3!s:.<20s}Timestamp: {4}'.format(title,owner,level,tags,timestamp))
         fname = extract_content_between_tags(data, "image")
-        attachment[0] = fname
         if fname != "None":
-            attachment = directory + "/" + extract_content_between_tags(data, "link")
+            attachment[0] = fname
+            attachment[1] = directory + "/" + extract_content_between_tags(data, "link")
+            attachment[2] = get_mime_type(attachment[1])
+            print("Attachment: ", attachment)
             # print ("Attachment: "+fname+"  \t\t\t"+attachment+" ("+get_mime_type(attachment)+")")
-            print('Attachment: {0!s:.<40}{1!s:.<60s}{2}'.format(fname, attachment, get_mime_type(attachment)))
+            #print('Attachment: {0!s:.<40}{1!s:.<60s}{2}'.format(fname, attachment, get_mime_type(attachment[2])))
         else:
             print("Attachment: "+fname)
         content = get_tagged(soup, "text")
