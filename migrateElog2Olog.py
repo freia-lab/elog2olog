@@ -2,6 +2,7 @@ import sys
 import os
 import re
 import mimetypes
+import math
 from datetime import datetime, timezone, timedelta
 import requests
 import json
@@ -17,6 +18,8 @@ from PIL import Image
 import wikitextparser as wtp
 from bs4 import BeautifulSoup
 
+EMBEDED_IMAGE_WIDTH = 800
+
 execfile('passwds.py')
 
 def get_image_size(file_path):
@@ -25,7 +28,7 @@ def get_image_size(file_path):
             width, height = img.size
             return width, height
     except IOError:
-        print(f"Unable to open image file: {file_path}")
+        #print(f"Unable to open image file: {file_path}")
         return None
 
 def datetime_to_unix_milliseconds(date_str, time_str):
@@ -200,18 +203,22 @@ def wiki2commonmark(input_data):
     commonmark=""
     main_index = 0
     input_data_length = len(commonmark0)
-    print ("DEBUG(wiki2commonmark): inp_data_length: " ,input_data_length)
+    if debug > 1:
+        print ("DEBUG(wiki2commonmark): inp_data_length: " ,input_data_length)
     while main_index < input_data_length:
-        print("DEBUG(wiki2commonmark): main_index: "+str(main_index)+"   Data@main_index: "+commonmark0[main_index:main_index+40])
+        if debug > 1:
+            print("DEBUG(wiki2commonmark): main_index: "+str(main_index)+"   Data@main_index: "+commonmark0[main_index:main_index+40])
         # Insert <newline> as the first character in order to make the search for tags
         # the same in the beginiing of the document as in hte rest of it
         indx, length, block = replace_tags("\n"+commonmark0[main_index:], "\n{{", "\n}}  \n", "\n```\n", "\n```\n")
-        print ("DEBUG(wiki2commonmark): block_length, indx: " ,length, indx)
+        if debug > 1:
+            print ("DEBUG(wiki2commonmark): block_length, indx: " ,length, indx)
         if (indx >= 0):
             commonmark = commonmark + replace_formatting(commonmark0[main_index:main_index+indx])
             commonmark = commonmark + block
             main_index = main_index + length + indx - 1
-            print("DEBUG(wiki2commonmark): main_index after the last code block:", main_index)
+            if debug > 1:
+                print("DEBUG(wiki2commonmark): main_index after the last code block:", main_index)
         else:
             commonmark = commonmark + replace_formatting(commonmark0[main_index:])
             break
@@ -219,7 +226,6 @@ def wiki2commonmark(input_data):
 
 def get_tagged(soup, tag):
     value = soup.find(tag)
-#    print(value)
     if (tag == "title"):
         if len(value.contents) == 0:
             return "None"
@@ -236,9 +242,8 @@ def get_tagged(soup, tag):
 def get_owner(data):
     dict = {"KG":"KG", "KF": "KF", "Kf": "KF"}
     others = ""
-    guest = "konrad"
+    guest = "guest"
     a = extract_content_between_tags(data, "author")
-    print (a[0:2])
     if a[0:2] in dict:
         if len(a) == 2:
             return dict[a], others
@@ -261,11 +266,32 @@ def get_level(data):
         l = "Normal"
     return l
 
+def get_server_info(api_endpoint):
+    info = None
+    try:
+        response = requests.get(api_endpoint)
+        if response.status_code == 200:
+            info = response.text
+        else:
+            print(f"Failed to get server info. Status code: {response.status_code}")
+    except Exception as e:
+        print("An error occurred: ",{str(e)})
+    return info
+    
 def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, timestamp, title, level, tags, descr, attachment):
+    # Get server info
+    maxFileSize = 15
+    maxRequestSize = 50
+    serverInfo = get_server_info(api_endpoint)
+    if debug > 1:
+        print ("Server info: ", get_server_info(api_endpoint))
+    if serverInfo is not None:
+        info = json.loads(get_server_info(api_endpoint))
+        serverConfig = info["serverConfig"]
+        maxFileSize = info["serverConfig"]["maxFileSize"]
+    
     # Prepare log entry payload
     attchmntId = str(uuid.uuid4())
-    json_filename = ""
-    json_descr = ""
     if (attachment[0] == "None"):
         log_entry = {
             "description": authors+descr,
@@ -275,8 +301,20 @@ def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, tim
             "events": [{"name":"OriginalCreatedDate","instant": timestamp }]
         }
     else:
+        if os.path.getsize(attachment[1]) > maxFileSize * 1000000:
+            return ("Attachment file too big (max size: {0}MB)".format(maxFileSize))
+        width, height = get_image_size(attachment[1])
+        if debug > 1:
+            print("DEBUG(create_log_entry_with_attachments): image size {0}x{1}".format(width, height))
+        if width > EMBEDED_IMAGE_WIDTH:
+            scale = 'width={0:d} height={1:d}'.format(EMBEDED_IMAGE_WIDTH, math.trunc(height*EMBEDED_IMAGE_WIDTH/width))
+            scale = "{"+scale+"}"
+        else:
+            scale = ""
+        if debug > 1:
+            print("DEBUG(create_log_entry_with_attachments): Scale: ", scale)
         log_entry = {
-            "description": authors+descr+"\n\nSee attachment\n",
+            "description": authors+descr+"\n\nSee attachment  \n![](attachment/"+attchmntId+")"+scale,
             "level": level,
             "title": title,
             "logbooks": [{"name": logbook}],
@@ -285,12 +323,8 @@ def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, tim
             {"id": attchmntId, "filename": attachment[0]}
             ]
         }
-         # Prepare the attachment
-        print ("DEBUG(attachment(create_log_entry_with_attachments): attachment: ", attachment)
-        # Prepare the log entry payload as JSON
-        json_filename = json.dumps({"filename": attachment[0]})
-        json_descr = json.dumps({"fileMetadataDescription": attachment[2]})
-        print (json_descr)
+        if debug > 1:
+            print ("DEBUG(attachment(create_log_entry_with_attachments): attachment: ", attachment)
 
     # Prepare the log entry payload as JSON
     json_data = json.dumps(log_entry)
@@ -313,26 +347,29 @@ def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, tim
     headers = {
         'Content-Type': multipart_data.content_type
     }
-    print("Content-Type " + multipart_data.content_type)
-    #print(multipart_data)
+    if debug > 1:
+        print("DEBUG(create_log_entry_with_attachments): Content-Type " + multipart_data.content_type)
+        print("DEBUG(create_log_entry_with_attachments): multipart_data: ", multipart_data)
+    api_endpoint += "/logs/multipart"
     try:
         #response = requests.put(api_endpoint, headers=headers, data=multipart_data, auth=HTTPBasicAuth(owner, dict[owner]))
         if response.status_code == 200:
-            print("Log entry created successfully.")
+            return "OK"
         else:
-            print(f"Failed to create log entry. Status code: {response.status_code}")
+            return "Failed to create log entry. Status code: {0}".format(response.status_code)
     except Exception as e:
-        print("An error occurred: ",{str(e)})
+        return "An error occurred: " + str(e)
+    return "OK"
 
 def main():
-    
     attachment = ["None","None","None"]
+    debug = 0
      # Default values for url and logbook
-    url = "https://freia-olog.physics.uu.se:8181/Olog/logs/multipart"
+    url = "https://freia-olog.physics.uu.se:8181/Olog"
     logbook = "test"
    
     if len(sys.argv) < 2:
-        print("Usage: python3 migrateElog2Olog.py <file_path> [-l <logbook>] [-u <url>]")
+        print("Usage: python3 migrateElog2Olog.py <file_path> [-l <logbook>] [-u <url>] -d")
         return
 
     file_path = sys.argv[1]
@@ -361,12 +398,15 @@ def main():
             else:
                 print("Error: -l flag requires a logbook value.")
                 return
+        elif sys.argv[i] == '-d':
+            debug = 1
+            i += 1
         else:
             print("Error: Invalid option", sys.argv[i])
             return
 
-        #    print("Directory:", directory)
-        #    print("File Name:", filename)
+        #print("Directory:", directory)
+        #print("File Name:", filename)
     try:
         owner, authors = get_owner(data)
         title = get_title(data)
@@ -375,31 +415,28 @@ def main():
         d =  extract_content_between_tags(data, "isodate")
         t = extract_content_between_tags(data, "time")
         timestamp = datetime_to_unix_milliseconds(d,t)
-        print('Author: {1} ({5})\tTitle: {0}\nLevel: {2!s:.<20s}Keyword: {3!s:.<20s}Timestamp: {4}'.format(title,owner,level,tags,timestamp, authors))
+        if debug > 0:
+            print('Logbook: {6}\nAuthor: {1} ({5})\tTitle: {0}\nLevel: {2!s:.<20s}Keyword: {3!s:.<20s}Timestamp: {4}'.format(title,owner,level,tags,timestamp, authors, logbook))
         fname = extract_content_between_tags(data, "image")
         if fname != "None":
             attachment[0] = fname
             attachment[1] = directory + "/" + extract_content_between_tags(data, "link")
             attachment[2] = get_mime_type(attachment[1])
-            print("Attachment: ", attachment)
             image_size = get_image_size(attachment[1])
-            if image_size:
-                print("Image size: ", image_size)
-            # print ("Attachment: "+fname+"  \t\t\t"+attachment+" ("+get_mime_type(attachment)+")")
-            #print('Attachment: {0!s:.<40}{1!s:.<60s}{2}'.format(fname, attachment, get_mime_type(attachment[2])))
-        else:
-            print("Attachment: "+fname)
+            if debug > 0:
+                print('Attachment: {0}'.format(attachment))
+                if image_size:
+                    print("Image size: ", image_size)
         content = get_tagged(soup, "text")
         # convert from wiki markup to commonmark 
-        #  print(content.replace("\n", "  \n"))
-        #print (dir(content))
-        # convert from wiki markup to commonmark 
         commonmark = wiki2commonmark (content)
-        print ("=========\n"+commonmark+"=========")
-        create_log_entry_with_attachments(url, logbook, owner, authors, timestamp, title, level, tags, commonmark, attachment)
-        #print("Logbook:", logbook)
+        if debug > 1:
+            print("Logbook:", logbook)
+            print ("=========\n"+commonmark+"=========")
+        print(create_log_entry_with_attachments(url, logbook, owner, authors, timestamp, title, level, tags, commonmark, attachment))
     except Exception as e:
         print(f"Error in {file_path}: {str(e)}")
 
 if __name__ == "__main__":
+    debug = 0
     main()
