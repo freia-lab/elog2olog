@@ -236,8 +236,11 @@ def get_tagged(soup, tag):
             return "None"
         else:
             return soup.find(tag).contents[0]
-  
-    return soup.find(tag).contents[0]
+
+    if len(value.contents) == 0:
+        return "None"
+    else:
+        return soup.find(tag).contents[0]
 
 def get_owner(data):
     dict = {"KG":"KG", "KF": "KF", "Kf": "KF"}
@@ -250,7 +253,7 @@ def get_owner(data):
         else:
             return dict[a[0:2]], "Author(s): "+a+"  \n"
     else:
-        return guest,a
+        return guest,"Author(s): "+a+"  \n"
  
 def get_title(data):
     t = extract_content_between_tags(data, "title")
@@ -278,7 +281,7 @@ def get_server_info(api_endpoint):
         print("An error occurred: ",{str(e)})
     return info
     
-def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, timestamp, title, level, tags, descr, attachment):
+def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, timestamp, title, level, tags, descr, attachment, dry_run):
     # Get server info
     maxFileSize = 15
     maxRequestSize = 50
@@ -301,20 +304,22 @@ def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, tim
             "events": [{"name":"OriginalCreatedDate","instant": timestamp }]
         }
     else:
+        scale = ""
+        embedded = ""
         if os.path.getsize(attachment[1]) > maxFileSize * 1000000:
             return ("Attachment file too big (max size: {0}MB)".format(maxFileSize))
-        width, height = get_image_size(attachment[1])
-        if debug > 1:
-            print("DEBUG(create_log_entry_with_attachments): image size {0}x{1}".format(width, height))
-        if width > EMBEDED_IMAGE_WIDTH:
-            scale = 'width={0:d} height={1:d}'.format(EMBEDED_IMAGE_WIDTH, math.trunc(height*EMBEDED_IMAGE_WIDTH/width))
-            scale = "{"+scale+"}"
-        else:
-            scale = ""
+        if (attachment[2] is not None) and (attachment[2].find("image") == 0):
+            width, height = get_image_size(attachment[1])
+            if debug > 1:
+                print("DEBUG(create_log_entry_with_attachments): image size {0}x{1}".format(width, height))
+            if width > EMBEDED_IMAGE_WIDTH:
+                scale = 'width={0:d} height={1:d}'.format(EMBEDED_IMAGE_WIDTH, math.trunc(height*EMBEDED_IMAGE_WIDTH/width))
+                scale = "{"+scale+"}"
+            embedded = "![](attachment/"+attchmntId+")"+scale
         if debug > 1:
             print("DEBUG(create_log_entry_with_attachments): Scale: ", scale)
         log_entry = {
-            "description": authors+descr+"\n\nSee attachment  \n![](attachment/"+attchmntId+")"+scale,
+            "description": authors+descr+"\n\nSee attachment  \n"+embedded,
             "level": level,
             "title": title,
             "logbooks": [{"name": logbook}],
@@ -352,7 +357,10 @@ def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, tim
         print("DEBUG(create_log_entry_with_attachments): multipart_data: ", multipart_data)
     api_endpoint += "/logs/multipart"
     try:
-        #response = requests.put(api_endpoint, headers=headers, data=multipart_data, auth=HTTPBasicAuth(owner, dict[owner]))
+        if not dry_run:
+            response = requests.put(api_endpoint, headers=headers, data=multipart_data, auth=HTTPBasicAuth(owner, dict[owner]))
+        else:
+            return "OK"
         if response.status_code == 200:
             return "OK"
         else:
@@ -364,12 +372,13 @@ def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, tim
 def main():
     attachment = ["None","None","None"]
     debug = 0
+    dry_run = False
      # Default values for url and logbook
     url = "https://freia-olog.physics.uu.se:8181/Olog"
     logbook = "test"
    
     if len(sys.argv) < 2:
-        print("Usage: python3 migrateElog2Olog.py <file_path> [-l <logbook>] [-u <url>] -d")
+        print("Usage: python3 migrateElog2Olog.py <file_path> [-l <logbook>] [-u <url>] [-d] [-n]")
         return
 
     file_path = sys.argv[1]
@@ -401,41 +410,49 @@ def main():
         elif sys.argv[i] == '-d':
             debug = 1
             i += 1
+        elif sys.argv[i] == '-n':
+            dry_run = True
+            i += 1
         else:
             print("Error: Invalid option", sys.argv[i])
             return
 
         #print("Directory:", directory)
         #print("File Name:", filename)
-    try:
-        owner, authors = get_owner(data)
-        title = get_title(data)
-        level = get_level(data)
-        tags = get_tag(data)
-        d =  extract_content_between_tags(data, "isodate")
-        t = extract_content_between_tags(data, "time")
-        timestamp = datetime_to_unix_milliseconds(d,t)
+    #try:
+    owner, authors = get_owner(data)
+    title = get_title(data)
+    level = get_level(data)
+    if level == "DELETE":
+        print("DELETED")
+        return
+    tags = get_tag(data)
+    d =  extract_content_between_tags(data, "isodate")
+    t = extract_content_between_tags(data, "time")
+    if len(t) == 5:
+        t = t + ":00"
+    timestamp = datetime_to_unix_milliseconds(d,t)
+    if debug > 0:
+        print('Logbook: {6}\nAuthor: {1} ({5})\tTitle: {0}\nLevel: {2!s:.<20s}Keyword: {3!s:.<20s}Timestamp: {4}'.format(title,owner,level,tags,timestamp, authors, logbook))
+    fname = extract_content_between_tags(data, "image")
+    if fname != "None":
+        attachment[0] = fname
+        attachment[1] = directory + "/" + extract_content_between_tags(data, "link")
+        attachment[2] = get_mime_type(attachment[1])
+        image_size = get_image_size(attachment[1])
         if debug > 0:
-            print('Logbook: {6}\nAuthor: {1} ({5})\tTitle: {0}\nLevel: {2!s:.<20s}Keyword: {3!s:.<20s}Timestamp: {4}'.format(title,owner,level,tags,timestamp, authors, logbook))
-        fname = extract_content_between_tags(data, "image")
-        if fname != "None":
-            attachment[0] = fname
-            attachment[1] = directory + "/" + extract_content_between_tags(data, "link")
-            attachment[2] = get_mime_type(attachment[1])
-            image_size = get_image_size(attachment[1])
-            if debug > 0:
-                print('Attachment: {0}'.format(attachment))
-                if image_size:
-                    print("Image size: ", image_size)
-        content = get_tagged(soup, "text")
-        # convert from wiki markup to commonmark 
-        commonmark = wiki2commonmark (content)
-        if debug > 1:
-            print("Logbook:", logbook)
-            print ("=========\n"+commonmark+"=========")
-        print(create_log_entry_with_attachments(url, logbook, owner, authors, timestamp, title, level, tags, commonmark, attachment))
-    except Exception as e:
-        print(f"Error in {file_path}: {str(e)}")
+            print('Attachment: {0}'.format(attachment))
+            if image_size:
+                print("Image size: ", image_size)
+    content = get_tagged(soup, "text")
+    # convert from wiki markup to commonmark 
+    commonmark = wiki2commonmark (content)
+    if debug > 1:
+        print("Logbook:", logbook)
+        print ("=========\n"+commonmark+"=========")
+    print(create_log_entry_with_attachments(url, logbook, owner, authors, timestamp, title, level, tags, commonmark, attachment, dry_run))
+    #except Exception as e:
+        #print(f"Error in {file_path}: {str(e)}")
 
 if __name__ == "__main__":
     debug = 0

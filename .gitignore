@@ -2,4 +2,4 @@ olog.ldif
 passwds.py
 *~
 __pycache__
-data/
+data*

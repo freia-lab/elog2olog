@@ -45,23 +45,22 @@ def wiki2commonmark(input_data):
 
 def get_tagged(soup, tag):
     value = soup.find(tag)
+    if len(value.contents) == 0:
+        return "None"
 #    print(value)
     if (tag == "title"):
-        if len(value.contents) == 0:
-            return "None"
-        else:
-            return soup.find(tag).contents[0]
+        return value.contents[0]
     if (tag == "femail"):
-        if len(value.contents) == 0:
-            return "None"
-        else:
-            return soup.find(tag).contents[0]
-  
-    return soup.find(tag).contents[0]
+        return value.contents[0]
+    if (tag == "time"):
+        t = value.contents[0]
+        if len(t) == 5:
+            return t + ":00"
+    return value.contents[0]
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python3 program.py <file_path> [-t <tag>] [-l <logbook>]")
+        print("Usage: python3 program.py <file_path> [-t <tag>] [-tstamp")
         return
 
     file_path = sys.argv[1]
@@ -74,9 +73,10 @@ def main():
 #    for t in soup.find_all(True):
 #        print(t.name)
 #    print (soup)
-    # Default values for tag and logbook
+    # Default values for tag
     tag = None
-    logbook = None
+    tstamp = False
+    tstampStr = ""
 
     # Check for optional arguments
     i = 2  # Start index for optional arguments
@@ -88,13 +88,9 @@ def main():
             else:
                 print("Error: -t flag requires a tag value.")
                 return
-        elif sys.argv[i] == '-l':
-            if i + 1 < len(sys.argv):
-                logbook = sys.argv[i + 1]
-                i += 2  # Skip logbook value
-            else:
-                print("Error: -l flag requires a logbook value.")
-                return
+        elif sys.argv[i] == '-tstamp':
+                tstamp  = True
+                i += 1  # Next arg
         else:
             print("Error: Invalid option", sys.argv[i])
             return
@@ -108,8 +104,15 @@ def main():
                 attachment = directory + "/" + extract_content_between_tags(data, "link")
                 # print ("Attachment: "+fname+"  \t\t\t"+attachment+" ("+get_mime_type(attachment)+")")
                 print('Attachment: {0!s:.<40}{1!s:.<60s}{2}'.format(fname, attachment, get_mime_type(attachment)))
+
         else:
-            #print("Tag:", tag, "value: ", get_tagged(soup, tag))
+            if tstamp:
+                d = get_tagged(soup, 'isodate')
+                t = get_tagged(soup, 'time')
+                stampStr = "Timestamp: " + d + t + " "
+                print("Timestamp: {0}T{1}".format(d,t))
+                return
+            print("Tag:", tag, "value: ", get_tagged(soup, tag))
             content = get_tagged(soup, tag)
             # convert from wiki markup to commonmark 
 #            print(content.replace("\n", "  \n"))
