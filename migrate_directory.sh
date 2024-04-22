@@ -18,7 +18,8 @@ else
 fi
 
 echo Using $TMPFILE
-cat $TMPFILE
+#cat $TMPFILE
+
 i=1
 while read -r my_file
 do

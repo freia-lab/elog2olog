@@ -243,17 +243,17 @@ def get_tagged(soup, tag):
         return soup.find(tag).contents[0]
 
 def get_owner(data):
-    dict = {"KG":"KG", "KF": "KF", "Kf": "KF"}
-    others = ""
+    knownAuthors = ("KG","KF","RSK","AM","CS","CW","EP","IP","JE","KP","LH",
+                    "MZ","RSK","SE","TB","TP")
     guest = "guest"
     a = extract_content_between_tags(data, "author")
-    if a[0:2] in dict:
-        if len(a) == 2:
-            return dict[a], others
-        else:
-            return dict[a[0:2]], "Author(s): "+a+"  \n"
-    else:
-        return guest,"Author(s): "+a+"  \n"
+    for i in (3,2):
+        if a[0:i].upper() in knownAuthors:
+            if len(a) == i:
+                return a.upper(), ""
+            if len(a) > i:
+                return knownAuthors[knownAuthors.index(a[0:i].upper())], "Author(s): "+a+"  \n"
+    return guest,"Author(s): "+a+"  \n"
  
 def get_title(data):
     t = extract_content_between_tags(data, "title")
