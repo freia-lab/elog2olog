@@ -61,7 +61,7 @@ def extract_content_between_tags(input_string, tag):
     if matches:
         return matches[0]
     else:
-        return "None"
+        return None
     
 def replace_tags(input_string, str1, str2, str3, str4):
     # Find the start index of str1 in the input string
@@ -105,7 +105,10 @@ def format_italic_bold (input_string, str1, str2):
 
 def find_url(input_string):
     pattern = r'\b(?:https?://)\S+(?=\s|\)|\.)'
-    match = re.search(pattern, input_string)
+    # Add \n to the end to prevent error when there is no
+    # terminating chracter in input_string and the url
+    # is the last entry in the input
+    match = re.search(pattern, input_string+"\n")
     if match:
         url = match.group(0)
         start_index = match.start()
@@ -199,7 +202,10 @@ def replace_formatting(input_data):
 
 def wiki2commonmark(input_data):
     # Add 2 spaces before <newline> to make a line breake
-    commonmark0 = input_data.replace("\n", "  \n")
+    if input_data is not None:
+        commonmark0 = input_data.replace("\n", "  \n")
+    else:
+        return ""
     commonmark=""
     main_index = 0
     input_data_length = len(commonmark0)
@@ -228,17 +234,17 @@ def get_tagged(soup, tag):
     value = soup.find(tag)
     if (tag == "title"):
         if len(value.contents) == 0:
-            return "None"
+            return None
         else:
             return soup.find(tag).contents[0]
     if (tag == "femail"):
         if len(value.contents) == 0:
-            return "None"
+            return None
         else:
             return soup.find(tag).contents[0]
 
     if len(value.contents) == 0:
-        return "None"
+        return None
     else:
         return soup.find(tag).contents[0]
 
@@ -295,7 +301,7 @@ def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, tim
     
     # Prepare log entry payload
     attchmntId = str(uuid.uuid4())
-    if (attachment[0] == "None"):
+    if (attachment[0] == None):
         log_entry = {
             "description": authors+descr,
             "level": level,
@@ -334,7 +340,7 @@ def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, tim
     # Prepare the log entry payload as JSON
     json_data = json.dumps(log_entry)
     # Prepare the multipart encoder
-    if (attachment[0] == "None"):
+    if (attachment[0] == None):
         multipart_data = MultipartEncoder(
             fields={
                 'logEntry': ('logEntry.json', json_data, 'application/json')
@@ -370,7 +376,7 @@ def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, tim
     return "OK"
 
 def main():
-    attachment = ["None","None","None"]
+    attachment = [None,None,None]
     debug = 0
     dry_run = False
      # Default values for url and logbook
@@ -435,7 +441,7 @@ def main():
     if debug > 0:
         print('Logbook: {6}\nAuthor: {1} ({5})\tTitle: {0}\nLevel: {2!s:.<20s}Keyword: {3!s:.<20s}Timestamp: {4}'.format(title,owner,level,tags,timestamp, authors, logbook))
     fname = extract_content_between_tags(data, "image")
-    if fname != "None":
+    if fname != None:
         attachment[0] = fname
         attachment[1] = directory + "/" + extract_content_between_tags(data, "link")
         attachment[2] = get_mime_type(attachment[1])

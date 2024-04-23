@@ -14,7 +14,7 @@ if [ -d $DIR ]; then
     echo $(date)
 else
     TMPFILE=$DIR
-    n = $(wc -l $TMPFILE)
+    n=$(wc -l $TMPFILE)
 fi
 
 echo Using $TMPFILE
