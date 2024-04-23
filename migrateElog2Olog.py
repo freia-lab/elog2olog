@@ -232,11 +232,6 @@ def wiki2commonmark(input_data):
 
 def get_tagged(soup, tag):
     value = soup.find(tag)
-    if (tag == "title"):
-        if len(value.contents) == 0:
-            return None
-        else:
-            return soup.find(tag).contents[0]
     if (tag == "femail"):
         if len(value.contents) == 0:
             return None
@@ -259,10 +254,14 @@ def get_owner(data):
                 return a.upper(), ""
             if len(a) > i:
                 return knownAuthors[knownAuthors.index(a[0:i].upper())], "Author(s): "+a+"  \n"
+    if len(a) == 0:
+        return guest, "Author unknown  \n"
     return guest,"Author(s): "+a+"  \n"
  
 def get_title(data):
     t = extract_content_between_tags(data, "title")
+    if len(t) == 0:
+        return "Untitled"
     return t
 
 def get_tag(data):
@@ -338,6 +337,8 @@ def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, tim
             print ("DEBUG(attachment(create_log_entry_with_attachments): attachment: ", attachment)
 
     # Prepare the log entry payload as JSON
+    if debug > 1:
+        print ("DEBUG(attachment(create_log_entry_with_attachments): log_entry: ", log_entry)
     json_data = json.dumps(log_entry)
     # Prepare the multipart encoder
     if (attachment[0] == None):
