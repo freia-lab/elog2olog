@@ -445,9 +445,12 @@ def main():
     if debug > 0:
         print('Logbook: {6}\nAuthor: {1} ({5})\tTitle: {0}\nLevel: {2!s:.<20s}Keyword: {3!s:.<20s}Timestamp: {4}'.format(title,owner,level,tags,timestamp, authors, logbook))
     fname = extract_content_between_tags(data, "image")
+    link = extract_content_between_tags(data, "link")
+    if fname == None and link != None:
+        fname = link
     if fname != None:
         attachment[0] = fname
-        attachment[1] = directory + "/" + extract_content_between_tags(data, "link")
+        attachment[1] = directory + "/" + link
         attachment[2] = get_mime_type(attachment[1])
         image_size = get_image_size(attachment[1])
         if debug > 0:
