@@ -191,6 +191,9 @@ def replace_formatting(input_data):
     # replace the numbered list formatting
     #print("DEBUG(replace_fromatting): input_data: ", input_data)
     output_data = input_data.replace("\n#", "\n1. ")
+    # Replace the nested lists (first the third level, then the second
+    output_data = output_data.replace("\n  *", "\n    *")
+    output_data = output_data.replace("\n *", "\n  *")
     # Replace the headings
     output_data = output_data.replace("\n!!", "\n# ")
     output_data = output_data.replace("\n!", "\n## ")
