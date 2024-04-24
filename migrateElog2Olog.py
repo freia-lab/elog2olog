@@ -17,6 +17,7 @@ from PIL import Image
 
 import wikitextparser as wtp
 from bs4 import BeautifulSoup
+import html
 
 EMBEDED_IMAGE_WIDTH = 800
 
@@ -235,12 +236,15 @@ def wiki2commonmark(input_data):
 
 def get_tagged(soup, tag):
     value = soup.find(tag)
-    if (tag == "femail"):
-        if len(value.contents) == 0:
+    if tag == "title":
+        start_indx = soup.find("<"+tag+">")+len(tag)+2
+        stop_indx = soup.find("</"+tag+">")
+        if (start_indx < 0) or (len(soup[start_indx:stop_indx])) == 0:
             return None
         else:
-            return soup.find(tag).contents[0]
-
+            print ("Title: ",soup[start_indx:stop_indx], "  start: ", start_indx, "  end: ", stop_indx)
+            return soup[start_indx:stop_indx]
+        
     if len(value.contents) == 0:
         return None
     else:
@@ -263,9 +267,9 @@ def get_owner(data):
  
 def get_title(data):
     t = extract_content_between_tags(data, "title")
-    if len(t) == 0:
+    if t is None:
         return "Untitled"
-    return t
+    return html.unescape(t)
 
 def get_tag(data):
     k = extract_content_between_tags(data, "keywords")
@@ -322,7 +326,7 @@ def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, tim
             "level": level,
             "title": title,
             "logbooks": [{"name": logbook}],
-            "tags": [tags],
+            "tags": tag_entry,
             "events": [{"name":"OriginalCreatedDate","instant": timestamp }]
         }
     else:
@@ -345,7 +349,7 @@ def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, tim
             "level": level,
             "title": title,
             "logbooks": [{"name": logbook}],
-            "tags": [tags],
+            "tags": tag_entry,
             "events": [{"name":"OriginalCreatedDate","instant": timestamp }],
             "attachments":[
             {"id": attchmntId, "filename": attachment[0]}
