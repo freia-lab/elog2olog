@@ -269,6 +269,13 @@ def get_title(data):
 
 def get_tag(data):
     k = extract_content_between_tags(data, "keywords")
+    match k:
+        case "not set":
+            return ""
+        case "System":
+            return "Control system"
+        case "CM":
+            return "Cryomodule"
     return k
 
 def get_level(data):
@@ -293,6 +300,7 @@ def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, tim
     # Get server info
     maxFileSize = 15
     maxRequestSize = 50
+    tag_entry = ""
     serverInfo = get_server_info(api_endpoint)
     if debug > 1:
         print ("Server info: ", get_server_info(api_endpoint))
@@ -302,6 +310,11 @@ def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, tim
         maxFileSize = info["serverConfig"]["maxFileSize"]
     
     # Prepare log entry payload
+
+    if tags != "":
+        tag_entry = [tags]
+    else:
+        tag_entry = []
     attchmntId = str(uuid.uuid4())
     if (attachment[0] == None):
         log_entry = {
@@ -309,6 +322,7 @@ def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, tim
             "level": level,
             "title": title,
             "logbooks": [{"name": logbook}],
+            "tags": [tags],
             "events": [{"name":"OriginalCreatedDate","instant": timestamp }]
         }
     else:
@@ -331,6 +345,7 @@ def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, tim
             "level": level,
             "title": title,
             "logbooks": [{"name": logbook}],
+            "tags": [tags],
             "events": [{"name":"OriginalCreatedDate","instant": timestamp }],
             "attachments":[
             {"id": attchmntId, "filename": attachment[0]}
