@@ -28,7 +28,7 @@ zip
 ===================
 A command to find all authors in the logbook, for example:
 
-find data/GERSEMIelog/ -name "20*xml"| ./find_all_authors.sh |sort -u |tee GERSEMI_authors
+find data/GERSEMIelog/ -name "20*xml"| ./find_all_authors.sh |sort -uf | awk '{print $4,$5,$6,$7,$8}' |tee GERSEMI_authors
 
 ===================
 A command to create passwd.py from olof.ldif:

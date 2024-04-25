@@ -251,8 +251,8 @@ def get_tagged(soup, tag):
         return soup.find(tag).contents[0]
 
 def get_owner(data):
-    knownAuthors = ("KG","KF","RSK","AM","CS","CW","EP","IP","JE","KP","LH",
-                    "MZ","RSK","SE","TB","TP")
+    knownAuthors = ("AJ","ÅJ","AM","AW","CS","CW","EP","IP","JE","KF","KG",
+                    "KP","LH","MJ","MZ","PS","RSK","SE","TB","TL","TP","VZ")
     guest = "guest"
     a = extract_content_between_tags(data, "author")
     for i in (3,2):

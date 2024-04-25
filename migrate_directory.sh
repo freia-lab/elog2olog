@@ -35,6 +35,7 @@ fi
 
 echo Using $TMPFILE
 #cat $TMPFILE
+start_time=$(date)
 
 i=1
 while read -r my_file
@@ -52,5 +53,7 @@ do
 	fi
     fi
 done < "$TMPFILE"
+
+echo Migration of ${n} entries started on ${start_time} and ended on $(date)
 
 #rm $TMPFILE
