@@ -269,6 +269,8 @@ def get_title(data):
     t = extract_content_between_tags(data, "title")
     if t is None:
         return "Untitled"
+    if t == "":
+        return "Untitled"
     return html.unescape(t)
 
 def get_tag(data):
@@ -301,6 +303,9 @@ def get_server_info(api_endpoint):
     return info
     
 def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, timestamp, title, level, tags, descr, attachment, dry_run):
+    # Ignore empty entries
+    if (descr == "") and (title == "Untitled"):
+        return "EMPTY"
     # Get server info
     maxFileSize = 15
     maxRequestSize = 50

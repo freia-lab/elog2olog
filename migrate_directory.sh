@@ -45,7 +45,7 @@ do
     if [[ "$out" == "OK" ]]; then
 	echo ${GREEN}$out${NORMAL}
     else
-	if [[ "$out" == "DELETED" ]]; then
+	if [[ "$out" == "DELETED" ]] || [[ "$out" == "EMPTY" ]]; then
 	    echo ${BLUE}$out${NORMAL}
 	else
 	    echo ${RED}$out${NORMAL}
