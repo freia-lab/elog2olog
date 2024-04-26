@@ -208,8 +208,11 @@ def wiki2commonmark(input_data):
     # Add 2 spaces before <newline> to make a line breake
     # and a new line to recognize some tags in the beginning
     # of the log. This new-line will be removed before
-    # returning the text to the caller
+    # returning the text to the caller. Add olso \n to the end
+    # of the document
     if input_data is not None:
+        if input_data[-1:] != "\n":
+            input_data += "\n"
         commonmark0 = "\n" + input_data.replace("\n", "  \n")
     else:
         return ""
@@ -235,7 +238,9 @@ def wiki2commonmark(input_data):
         else:
             commonmark = commonmark + replace_formatting(commonmark0[main_index:])
             break
-    # Return the data skipping the first <newline> added in the beginning
+    # Return the data skipping the first <newline> added in the beginning and possibly "  \n" in the end
+    if commonmark[-3:] == "  \n":
+        return commonmark[1:-3]
     return commonmark[1:]
 
 def get_tagged(soup, tag):
