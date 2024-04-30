@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import sys
 import os
 import re
@@ -20,6 +22,14 @@ from bs4 import BeautifulSoup
 import html
 
 EMBEDED_IMAGE_WIDTH = 800
+
+# Import the owners credentials stored in dictionary "dict" in the form:
+# {
+#    "owner1": "password1",
+#    "owner2": "password2",
+#     ...
+#    "ownern": "passwordn",
+# }
 
 execfile('passwds.py')
 
@@ -219,21 +229,21 @@ def wiki2commonmark(input_data):
     commonmark=""
     main_index = 0
     input_data_length = len(commonmark0)
-    if debug > 1:
+    if debug > 2:
         print ("DEBUG(wiki2commonmark): inp_data_length: " ,input_data_length)
     while main_index < input_data_length:
-        if debug > 1:
+        if debug > 2:
             print("DEBUG(wiki2commonmark): main_index: "+str(main_index)+"   Data@main_index: "+commonmark0[main_index:main_index+40])
         # Insert <newline> as the first character in order to make the search for tags
         # the same in the beginiing of the document as in hte rest of it
         indx, length, block = replace_tags("\n"+commonmark0[main_index:], "\n{{", "\n}}  \n", "\n```\n", "\n```\n")
-        if debug > 1:
+        if debug > 2:
             print ("DEBUG(wiki2commonmark): block_length, indx: " ,length, indx)
         if (indx >= 0):
             commonmark = commonmark + replace_formatting(commonmark0[main_index:main_index+indx])
             commonmark = commonmark + block
             main_index = main_index + length + indx - 1
-            if debug > 1:
+            if debug > 2:
                 print("DEBUG(wiki2commonmark): main_index after the last code block:", main_index)
         else:
             commonmark = commonmark + replace_formatting(commonmark0[main_index:])
@@ -320,7 +330,7 @@ def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, tim
     maxRequestSize = 50
     tag_entry = ""
     serverInfo = get_server_info(api_endpoint)
-    if debug > 1:
+    if debug > 2:
         print ("Server info: ", get_server_info(api_endpoint))
     if serverInfo is not None:
         info = json.loads(get_server_info(api_endpoint))
@@ -350,13 +360,13 @@ def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, tim
             return ("Attachment file too big (max size: {0}MB)".format(maxFileSize))
         if (attachment[2] is not None) and (attachment[2].find("image") == 0):
             width, height = get_image_size(attachment[1])
-            if debug > 1:
+            if debug > 2:
                 print("DEBUG(create_log_entry_with_attachments): image size {0}x{1}".format(width, height))
             if width > EMBEDED_IMAGE_WIDTH:
                 scale = 'width={0:d} height={1:d}'.format(EMBEDED_IMAGE_WIDTH, math.trunc(height*EMBEDED_IMAGE_WIDTH/width))
                 scale = "{"+scale+"}"
             embedded = "![](attachment/"+attchmntId+")"+scale
-        if debug > 1:
+        if debug > 2:
             print("DEBUG(create_log_entry_with_attachments): Scale: ", scale)
         log_entry = {
             "description": authors+descr+"\n\nSee attachment  \n"+embedded,
@@ -369,7 +379,7 @@ def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, tim
             {"id": attchmntId, "filename": attachment[0]}
             ]
         }
-        if debug > 1:
+        if debug > 2:
             print ("DEBUG(attachment(create_log_entry_with_attachments): attachment: ", attachment)
 
     # Prepare the log entry payload as JSON
@@ -395,7 +405,7 @@ def create_log_entry_with_attachments(api_endpoint, logbook, owner, authors, tim
     headers = {
         'Content-Type': multipart_data.content_type
     }
-    if debug > 1:
+    if debug > 2:
         print("DEBUG(create_log_entry_with_attachments): Content-Type " + multipart_data.content_type)
         print("DEBUG(create_log_entry_with_attachments): multipart_data: ", multipart_data)
     api_endpoint += "/logs/multipart"
@@ -421,7 +431,7 @@ def main():
     logbook = "test"
    
     if len(sys.argv) < 2:
-        print("Usage: python3 migrateElog2Olog.py <file_path> [-l <logbook>] [-u <url>] [-d] [-n]")
+        print("Usage: python3 migrateElog2Olog.py <file_path> [-l <logbook>] [-u <url>] [-d <level>] [-n]")
         return
 
     file_path = sys.argv[1]
@@ -451,8 +461,16 @@ def main():
                 print("Error: -l flag requires a logbook value.")
                 return
         elif sys.argv[i] == '-d':
-            debug = 1
-            i += 1
+            if i + 1 < len(sys.argv):
+                if sys.argv[i + 1].isdecimal():
+                    debug = int(sys.argv[i + 1])
+                else:
+                     print("Error: -d flag requires a decimal argument")
+                     return
+                i += 2  # Skip debgg level value
+            else:
+                print("Error: -d flag requires a debug level value.")
+                return
         elif sys.argv[i] == '-n':
             dry_run = True
             i += 1
