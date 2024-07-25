@@ -301,6 +301,10 @@ def get_tag(data):
             return "Control system"
         case "CM":
             return "Cryomodule"
+        case "cavity":
+            return "Cavity"
+        case "magnet":
+            return "Magnet"
     return k
 
 def get_level(data):

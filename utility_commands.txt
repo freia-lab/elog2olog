@@ -35,3 +35,12 @@ A command to create passwd.py from olof.ldif:
 
 awk -f create_passwd_dict.awk olog.ldif > passwds.py 
 
+===================
+Command to convert the entries from elog to olog
+
+
+Dry run (not creating the olog entries):
+./migrate_directory.sh data/Cntrlelog/2013 "-l controls -n"
+
+Real migration example (Cntrlelog):
+./migrate_directory.sh data/Cntrlelog "-l controls" |tee Cntrlelog-migration-final.log
